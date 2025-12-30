@@ -33,11 +33,17 @@ export class Game {
     showControls: boolean = true;
     lastZeroState: boolean = false;
 
+    // Assets
+    images: { [key: string]: HTMLImageElement } = {};
+
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d')!;
+        this.ctx.imageSmoothingEnabled = false; // Keep pixel art crisp
         this.canvas.width = CONSTANTS.CANVAS_WIDTH;
         this.canvas.height = CONSTANTS.CANVAS_HEIGHT;
+
+        this.loadImages();
 
         this.input = new InputHandler();
         this.player = new Player();
@@ -47,6 +53,59 @@ export class Game {
 
         this.loop = this.loop.bind(this);
         requestAnimationFrame(this.loop);
+    }
+
+    loadImages() {
+        const assets = ['dirt', 'rock', 'drill', 'mole', 'battery'];
+        assets.forEach(name => {
+            const img = new Image();
+            img.src = `/assets/${name}.png`;
+            img.onload = () => {
+                console.log(`Loaded: ${name}`);
+                if (name === 'drill' || name === 'mole' || name === 'battery') {
+                    // Forcibly remove background for sprites
+                    this.images[name] = this.removeBackground(img);
+                }
+            };
+            img.onerror = (e) => console.error(`Failed to load: ${name}`, e);
+            this.images[name] = img;
+        });
+    }
+
+    removeBackground(img: HTMLImageElement): HTMLImageElement {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Assume topleft pixel is the background color
+        const bgR = data[0];
+        const bgG = data[1];
+        const bgB = data[2];
+
+        // Tolerance
+        const tol = 100; // Aggressive tolerance to remove "transparent square" artifacts
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            // If close to background color, make transparent
+            if (Math.abs(r - bgR) < tol && Math.abs(g - bgG) < tol && Math.abs(b - bgB) < tol) {
+                data[i + 3] = 0; // Alpha 0
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        const newImg = new Image();
+        newImg.src = canvas.toDataURL();
+        return newImg;
     }
 
     loadHighScores() {
@@ -178,16 +237,16 @@ export class Game {
         this.ctx.fillStyle = grad;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.map.render(this.ctx, this.scrollY);
+        this.map.render(this.ctx, this.scrollY, this.images);
 
         // Moles
-        this.moles.forEach(m => m.render(this.ctx, this.scrollY));
+        this.moles.forEach(m => m.render(this.ctx, this.scrollY, this.images));
 
         // Particles
         this.particles.forEach(p => p.render(this.ctx, this.scrollY));
 
         if (this.gameRunning) {
-            this.player.render(this.ctx, this.scrollY);
+            this.player.render(this.ctx, this.scrollY, this.images);
         }
 
         // Fever UI
@@ -216,13 +275,24 @@ export class Game {
             this.ctx.fillText("操作説明切替: 0", 10, 100);
         }
 
-        // HP (Hearts) - Drawn at top-right
-        this.ctx.fillStyle = CONSTANTS.colors.ITEM_HEAL; // Use Green (same as item)
+        // HP (Batteries) - Drawn at top-right
         const hpStartX = this.canvas.width - 20 - (this.player.hp * 25);
         for (let i = 0; i < this.player.hp; i++) {
-            this.ctx.beginPath();
-            this.ctx.arc(hpStartX + i * 25, 30, 8, 0, Math.PI * 2);
-            this.ctx.fill();
+            const cx = hpStartX + i * 25;
+            const cy = 30; // Center Y            
+            if (this.images && this.images['battery'] && this.images['battery'].complete && this.images['battery'].naturalWidth > 0) {
+                const size = 40; // Massive UI Icon
+                this.ctx.drawImage(this.images['battery'], cx - size / 2, cy - size / 2, size, size);
+            } else {
+                // Fallback Heart
+                this.ctx.fillStyle = CONSTANTS.colors.ITEM_HEAL; // Green Heart
+                const size = 12; // Bigger HP Hearts (was 8)
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx, cy + size * 0.7);
+                this.ctx.bezierCurveTo(cx + size, cy, cx + size, cy - size, cx, cy - size * 0.5);
+                this.ctx.bezierCurveTo(cx - size, cy - size, cx - size, cy, cx, cy + size * 0.7);
+                this.ctx.fill();
+            }
         }
 
         // Redraw HP in cleaner spot (Top Right)

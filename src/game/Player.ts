@@ -145,22 +145,33 @@ export class Player {
         }
     }
 
-    render(ctx: CanvasRenderingContext2D, scrollY: number) {
+    render(ctx: CanvasRenderingContext2D, scrollY: number, images?: { [key: string]: HTMLImageElement }) {
+        if (this.isDead) return;
+
         const screenY = this.y - scrollY;
 
-        ctx.fillStyle = this.isFever ? '#f1c40f' : CONSTANTS.colors.PLAYER; // Gold in Fever
+        if (images && images['drill'] && images['drill'].complete && images['drill'].naturalWidth > 0) {
+            ctx.save();
+            // Draw slightly larger than hitbox for impact
+            const scale = 1.4;
+            const dw = this.width * scale;
+            const dh = this.height * scale;
+            const dx = this.x - (dw - this.width) / 2;
+            const dy = screenY - (dh - this.height) / 2;
 
-        ctx.beginPath();
-        const cx = this.x + this.width / 2;
+            ctx.drawImage(images['drill'], dx, dy, dw, dh);
 
-        // Body
-        ctx.fillRect(this.x, screenY, this.width, this.height * 0.7);
-
-        // Drill
-        ctx.beginPath();
-        ctx.moveTo(this.x, screenY + this.height * 0.7);
-        ctx.lineTo(this.x + this.width, screenY + this.height * 0.7);
-        ctx.lineTo(cx, screenY + this.height);
-        ctx.fill();
+            // Fever overlay
+            if (this.isFever) {
+                ctx.globalCompositeOperation = 'source-atop';
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.5)';
+                ctx.fillRect(dx, dy, dw, dh);
+            }
+            ctx.restore();
+        } else {
+            // Fallback
+            ctx.fillStyle = this.isFever ? '#f1c40f' : CONSTANTS.colors.PLAYER;
+            ctx.fillRect(this.x, screenY, this.width, this.height);
+        }
     }
 }

@@ -103,35 +103,54 @@ export class TileMap {
         return false;
     }
 
-    render(ctx: CanvasRenderingContext2D, scrollY: number) {
+    render(ctx: CanvasRenderingContext2D, scrollY: number, images?: { [key: string]: HTMLImageElement }) {
         const startRow = Math.floor(scrollY / CONSTANTS.TILE_SIZE);
         const endRow = startRow + Math.ceil(CONSTANTS.CANVAS_HEIGHT / CONSTANTS.TILE_SIZE) + 1;
 
-        for (let r = startRow; r < endRow; r++) {
-            if (r < 0 || r >= this.rows.length) continue;
-            const row = this.rows[r];
-            for (let c = 0; c < this.cols; c++) {
-                const tile = row[c];
+        for (let row = startRow; row < endRow; row++) {
+            if (row < 0 || row >= this.rows.length) continue;
+
+            for (let col = 0; col < this.cols; col++) {
+                const tile = this.rows[row][col];
                 if (tile === TileType.EMPTY) continue;
 
-                const x = c * CONSTANTS.TILE_SIZE;
-                const y = r * CONSTANTS.TILE_SIZE - scrollY;
+                const x = col * CONSTANTS.TILE_SIZE;
+                const y = row * CONSTANTS.TILE_SIZE;
+                const screenY = y - scrollY;
 
                 if (tile === TileType.DIRT) {
-                    ctx.fillStyle = CONSTANTS.colors.DIRT;
-                    ctx.fillRect(x, y, CONSTANTS.TILE_SIZE, CONSTANTS.TILE_SIZE);
-                    ctx.strokeStyle = '#222';
-                    ctx.strokeRect(x, y, CONSTANTS.TILE_SIZE, CONSTANTS.TILE_SIZE);
+                    if (images && images['dirt'] && images['dirt'].complete && images['dirt'].naturalWidth > 0) {
+                        ctx.drawImage(images['dirt'], x, screenY, CONSTANTS.TILE_SIZE, CONSTANTS.TILE_SIZE);
+                    } else {
+                        ctx.fillStyle = CONSTANTS.colors.DIRT;
+                        ctx.fillRect(x, screenY, CONSTANTS.TILE_SIZE, CONSTANTS.TILE_SIZE);
+                    }
                 } else if (tile === TileType.ROCK) {
-                    ctx.fillStyle = CONSTANTS.colors.ROCK;
-                    ctx.fillRect(x, y, CONSTANTS.TILE_SIZE, CONSTANTS.TILE_SIZE);
-                    ctx.strokeStyle = '#222';
-                    ctx.strokeRect(x, y, CONSTANTS.TILE_SIZE, CONSTANTS.TILE_SIZE);
+                    if (images && images['rock'] && images['rock'].complete && images['rock'].naturalWidth > 0) {
+                        ctx.drawImage(images['rock'], x, screenY, CONSTANTS.TILE_SIZE, CONSTANTS.TILE_SIZE);
+                    } else {
+                        ctx.fillStyle = CONSTANTS.colors.ROCK;
+                        ctx.fillRect(x, screenY, CONSTANTS.TILE_SIZE, CONSTANTS.TILE_SIZE);
+                    }
                 } else if (tile === TileType.ITEM_HEAL) {
-                    ctx.fillStyle = CONSTANTS.colors.ITEM_HEAL;
-                    ctx.beginPath();
-                    ctx.arc(x + CONSTANTS.TILE_SIZE / 2, y + CONSTANTS.TILE_SIZE / 2, CONSTANTS.TILE_SIZE / 3, 0, Math.PI * 2);
-                    ctx.fill();
+                    if (images && images['battery'] && images['battery'].complete && images['battery'].naturalWidth > 0) {
+                        const size = CONSTANTS.TILE_SIZE * 2.0; // Double Size
+                        const offset = (CONSTANTS.TILE_SIZE - size) / 2;
+                        // Draw battery floating in the tile
+                        ctx.drawImage(images['battery'], x + offset, screenY + offset, size, size);
+                    } else {
+                        // Draw Heart (Fallback)
+                        ctx.fillStyle = CONSTANTS.colors.ITEM_HEAL; // Green Heart
+                        const cx = x + CONSTANTS.TILE_SIZE / 2;
+                        const cy = screenY + CONSTANTS.TILE_SIZE / 2;
+                        const size = CONSTANTS.TILE_SIZE / 1.8;
+
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy + size * 0.7);
+                        ctx.bezierCurveTo(cx + size, cy, cx + size, cy - size, cx, cy - size * 0.5);
+                        ctx.bezierCurveTo(cx - size, cy - size, cx - size, cy, cx, cy + size * 0.7);
+                        ctx.fill();
+                    }
                 }
             }
         }

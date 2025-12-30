@@ -31,30 +31,38 @@ export class Mole {
         if (this.y < scrollY - 50) this.isDead = true;
     }
 
-    render(ctx: CanvasRenderingContext2D, scrollY: number) {
+    render(ctx: CanvasRenderingContext2D, scrollY: number, images?: { [key: string]: HTMLImageElement }) {
         const screenY = this.y - scrollY;
 
-        ctx.fillStyle = '#8e44ad'; // Purple mole
-        ctx.strokeStyle = '#fff';
+        if (images && images['mole'] && images['mole'].complete && images['mole'].naturalWidth > 0) {
+            ctx.save();
 
-        // Draw Mole
-        ctx.beginPath();
-        // Body (Ellipse-ish)
-        ctx.ellipse(this.x + this.width / 2, screenY + this.height / 2, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+            // Scale up for visual impact
+            const scale = 2.0; // Double Size
+            const dw = this.width * scale;
+            const dh = this.height * scale;
+            const dx = this.x - (dw - this.width) / 2;
+            const dy = screenY - (dh - this.height) / 2;
 
-        // Eyes
-        ctx.fillStyle = '#000';
-        const eyeOffset = this.vx > 0 ? 4 : -4;
-        ctx.beginPath();
-        ctx.arc(this.x + this.width / 2 + eyeOffset, screenY + this.height / 2 - 4, 3, 0, Math.PI * 2);
-        ctx.fill();
+            // Flip sprite if moving left
+            if (this.vx < 0) {
+                ctx.translate(dx + dw, dy); // Translate to right edge of scaled box
+                ctx.scale(-1, 1);
+                ctx.drawImage(images['mole'], 0, 0, dw, dh);
+            } else {
+                ctx.drawImage(images['mole'], dx, dy, dw, dh);
+            }
 
-        // Nose
-        ctx.fillStyle = '#f39c12';
-        ctx.beginPath();
-        ctx.arc(this.x + this.width / 2 + eyeOffset * 1.5, screenY + this.height / 2 + 2, 4, 0, Math.PI * 2);
-        ctx.fill();
+            ctx.restore();
+        } else {
+            // Fallback
+            ctx.fillStyle = '#8e44ad'; // Purple mole
+            ctx.strokeStyle = '#fff';
+            // Draw Mole
+            ctx.beginPath();
+            ctx.ellipse(this.x + this.width / 2, screenY + this.height / 2, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
     }
 }
